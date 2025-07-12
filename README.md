@@ -1,5 +1,12 @@
 # Yemeksepeti Entegrasyonu - Sistem Dokümantasyonu
 
+# 🍔 Yemeksepeti Entegrasyonu - Sipariş Dashboard Sistemi
+
+Gerçek zamanlı sipariş takibi için geliştirilen bu sistem, **Node.js**, **Webhook**, **WebSocket**, ve **Angular** teknolojilerini kullanarak Yemeksepeti benzeri bir senaryoyu simüle eder.
+
+> 🔄 Proje hem **Mock API** hem de **Gerçek API** entegrasyonuna uygun olacak şekilde iki katmanlı yapıdadır.
+
+
 ## Webhook vs WebSocket Açıklaması
 
 ### Webhook (HTTP POST Request)
@@ -81,43 +88,58 @@
 ## Proje Yapısı
 
 ```
-yemeksepeti-integration/
-├── mock-server/                    # Mock API (Port: 3001)
-│   ├── server.js
-│   ├── package.json
-│   └── config/
-│       └── restaurants.json
-├── main-server/                    # Ana Sistem (Port: 3000)
-│   ├── server.js
-│   ├── package.json
-│   ├── routes/
-│   │   ├── webhook.js
-│   │   ├── orders.js
-│   │   └── stats.js
-│   ├── models/
-│   │   └── Order.js
-│   └── services/
-│       └── websocket.js
-├── angular-dashboard/              # Angular Frontend
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── components/
-│   │   │   │   ├── dashboard/
-│   │   │   │   ├── orders-list/
-│   │   │   │   ├── order-card/
-│   │   │   │   └── stats/
-│   │   │   ├── services/
-│   │   │   │   ├── order.service.ts
-│   │   │   │   ├── websocket.service.ts
-│   │   │   │   └── notification.service.ts
-│   │   │   └── models/
-│   │   │       └── order.model.ts
-│   │   └── environments/
-│   ├── package.json
-│   └── angular.json
-└── docs/
-    ├── api-documentation.md
-    └── deployment-guide.md
+orderflow-dual-backend/
+├── 📁 mock-server/                     # Mock API (Port: 3001)
+│   ├── 📄 server.js                    # Mock server ana dosyası
+│   ├── 📄 package.json
+│   ├── 📄 package-lock.json
+│   ├── 📁 routes/
+│   │   ├── 📄 generate.js              # Sipariş oluşturma routes
+│   │   └── 📄 health.js                # Health check routes
+│   ├── 📁 services/
+│   │   ├── 📄 orderGenerator.js        # Sahte sipariş oluşturucu
+│   │   └── 📄 webhookSender.js         # Webhook gönderici
+│   ├── 📁 config/
+│   │   ├── 📄 restaurants.json         # Restoran verileri
+│   │   ├── 📄 customers.json           # Müşteri verileri
+│   │   └── 📄 menuItems.json           # Menü öğeleri
+│   ├── 📁 utils/
+│   │   ├── 📄 logger.js                # Loglama
+│   │   └── 📄 scheduler.js             # Otomatik sipariş zamanlayıcı
+│   └── 📄 .env
+├── 📁 main-server/                     # Ana Sistem (Port: 3000)
+│   ├── 📄 server.js                    # Ana server dosyası
+│   ├── 📄 package.json
+│   ├── 📄 package-lock.json
+│   ├── 📁 routes/
+│   │   ├── 📄 webhook.js               # Webhook alıcı routes
+│   │   ├── 📄 orders.js                # Sipariş yönetimi routes
+│   │   ├── 📄 stats.js                 # İstatistik routes
+│   │   └── 📄 auth.js                  # Authentication routes (YENİ)
+│   ├── 📁 models/
+│   │   ├── 📄 Order.js                 # Sipariş modeli
+│   │   └── 📄 User.js                  # Kullanıcı modeli (YENİ)
+│   ├── 📁 services/
+│   │   ├── 📄 orderService.js          # Sipariş iş mantığı
+│   │   ├── 📄 websocketService.js      # WebSocket yönetimi
+│   │   ├── 📄 authService.js           # Authentication servisi (YENİ)
+│   │   └── 📄 emailService.js          # Email bildirimleri
+│   ├── 📁 middleware/
+│   │   ├── 📄 auth.js                  # JWT doğrulama (YENİ)
+│   │   ├── 📄 validation.js            # Input validation
+│   │   ├── 📄 rateLimit.js             # Rate limiting
+│   │   └── 📄 cors.js                  # CORS ayarları
+│   ├── 📁 utils/
+│   │   ├── 📄 logger.js                # Loglama
+│   │   ├── 📄 encryption.js            # Şifreleme (YENİ)
+│   │   └── 📄 validators.js            # Doğrulama fonksiyonları
+│   ├── 📁 config/
+│   │   ├── 📄 database.js              # Veritabanı ayarları
+│   │   ├── 📄 jwt.js                   # JWT ayarları (YENİ)
+│   │   └── 📄 email.js                 # Email ayarları
+│   └── 📄 .env
+
+
 ```
 
 ---
@@ -277,20 +299,7 @@ socket.on('new-order', (orderData: Order) => {
 });
 ```
 
-#### order-status-updated
-Sipariş durumu güncellendiğinde gönderilir.
-```typescript
-socket.on('order-status-updated', (data: {id: number, status: string}) => {
-  // İlgili siparişin durumunu güncelle
-});
-```
 
-#### stats-updated
-İstatistikler güncellendiğinde gönderilir.
-```typescript
-socket.on('stats-updated', (stats: Stats) => {
-  // Dashboard istatistiklerini güncelle
-});
 ```
 
 ### Client → Server (Angular → Ana Sistem)
@@ -408,16 +417,7 @@ ng serve
 
 ---
 
-## Gelecek Planları
 
-### Gerçek API Entegrasyonu
-İleride gerçek Yemeksepeti API'sine geçiş için:
-
-1. **Mock API'yi kaldır**
-2. **Gerçek Yemeksepeti webhook URL'ini ayarla**
-3. **Authentication ekle**
-4. **Rate limiting ekle**
-5. **Error handling geliştir**
 
 ### Yapılandırma
 ```typescript
