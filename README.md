@@ -435,11 +435,7 @@ export const environment = {
 
 ## Güvenlik Önlemleri
 
-### Webhook Güvenliği
-- **HTTPS kullanımı**
-- **IP whitelist**
-- **Signature verification**
-- **Rate limiting**
+
 
 ### API Güvenliği
 - **CORS ayarları**
