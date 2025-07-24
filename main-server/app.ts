@@ -1,9 +1,8 @@
 import express from "express";
 import cors from "cors"
 import morgan from "morgan";
-import webhookRoutes from "./src/routes/webhookRoutes";
-import authRoutes from "./src/routes/authRoutes";
 
+import orderRoutes from "./src/routes/orderRoutes";
 
 
 export  const  app=express();
@@ -17,7 +16,7 @@ app.use(express.json());   // json post isteklerini çözer
 // route
 
 
-app.use("/webhook",webhookRoutes)
-app.use("/auth", authRoutes)
+app.use("/orders", orderRoutes)
+
 
 export  default  app;

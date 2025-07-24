@@ -1,56 +1,343 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql" // veya "mysql", "sqlite"
   url      = env("DATABASE_URL")
 }
 
+model Order {
+  id                String   @id @default(cuid())
+  token             String   @unique @db.VarChar(512)
+  code              String   @unique @db.VarChar(255)
+  shortCode         String?  @db.VarChar(255)
+  createdAt         DateTime
+  expiryDate        DateTime
+  expeditionType    ExpeditionType
+  test              Boolean  @default(false)
+  preOrder          Boolean  @default(false)
+  corporateOrder    Boolean  @default(false)
+  mobileOrder       Boolean  @default(true)
+  webOrder          Boolean  @default(false)
+  corporateTaxId    String   @db.VarChar(512)
 
-model Restaurant {
+  // Relations
+  customer          Customer @relation(fields: [customerId], references: [id])
+  customerId        String
 
+  delivery          Delivery?
+  pickup            Pickup?
+  payment           Payment  @relation(fields: [paymentId], references: [id])
+  paymentId         String   @unique
 
-   id Int @id @default(autoincrement())
-   name String
-   email  String @unique
-   password String
-   orders Order[]
-   createdAt DateTime @default(now())
+  price             Price    @relation(fields: [priceId], references: [id])
+  priceId           String   @unique
 
+  localInfo         LocalInfo @relation(fields: [localInfoId], references: [id])
+  localInfoId       String
+
+  platformRestaurant PlatformRestaurant @relation(fields: [platformRestaurantId], references: [id])
+  platformRestaurantId String
+
+  // Comments
+  customerComment   String?  @db.Text
+  vendorComment     String?  @db.Text
+
+  // Collections
+  products          Product[]
+  discounts         Discount[]
+  deliveryFees      DeliveryFee[]
+  vouchers          Voucher[]
+
+  // JSON fields for flexible data
+  extraParameters   Json?
+  integrationInfo   Json?
+
+  // Invoicing
+  invoicingCarrierType  String?
+  invoicingCarrierValue String?
+
+  // Preparation Time Adjustments
+  maxPickUpTimestamp    DateTime
+  minPickupTimestamp    DateTime?
+  preparationTimeIntervals Json // number[][]
+
+  // Callback URLs
+  orderAcceptedUrl                    String?
+  orderRejectedUrl                   String?
+  orderProductModificationUrl        String?
+  orderPickedUpUrl                   String?
+  orderPreparedUrl                   String?
+  orderPreparationTimeAdjustmentUrl  String?
+
+  @@map("orders")
 }
 
-model Order  {
-id Int   @id @default (autoincrement())
-restaurantId Int
-restaurant Restaurant @relation(fields:[restaurantId],references:[id])
-items Json   //{}
-totalPrice Float
-status String @default("pending")
-createdAt DateTime @default(now())
-customerName String
+model Customer {
+  id                    String  @id @default(cuid())
+  email                 String? // Hash of customer email
+  firstName             String?
+  lastName              String?
+  mobilePhone           String?
+  mobilePhoneCountryCode String?
+  code                  String? // Customer code on platform
+  platformId            String? // Customer ID on platform
+  flags                 Json?   // string[]
 
+  orders                Order[]
+
+  @@map("customers")
 }
 
+model Delivery {
+  id                    String   @id @default(cuid())
+  orderId               String   @unique
+  order                 Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  expectedDeliveryTime  DateTime?
+  expressDelivery       Boolean  @default(false)
+  riderPickupTime       DateTime?
 
+  // Address
+  building              String?  @db.VarChar(255)
+  city                  String?  @db.VarChar(255)
+  company               String?  @db.VarChar(255)
+  deliveryArea          String?  @db.VarChar(255)
+  deliveryInstructions  String?  @db.VarChar(2048)
+  deliveryMainArea      String?  @db.VarChar(255)
+  entrance              String?  @db.VarChar(255)
+  flatNumber            String?  @db.VarChar(255)
+  floor                 String?  @db.VarChar(255)
+  intercom              String?  @db.VarChar(255)
+  latitude              Float?   // [-90..90]
+  longitude             Float?   // [-180..180]
+  number                String?  @db.VarChar(255)
+  postcode              String?  @db.VarChar(255)
+  street                String?  @db.VarChar(255)
 
+  @@map("deliveries")
+}
 
+model Pickup {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  pickupTime  DateTime?
+  pickupCode  String?
 
+  @@map("pickups")
+}
 
+model Payment {
+  id                    String      @id @default(cuid())
+  status                PaymentStatus
+  type                  String
+  remoteCode            String?
+  requiredMoneyChange   String?
+  vatId                 String?
+  vatName               String?
 
+  order                 Order?
 
+  @@map("payments")
+}
 
+model Price {
+  id                              String  @id @default(cuid())
+  grandTotal                      Decimal @db.Decimal(10,2)
+  totalNet                        Decimal @db.Decimal(10,2)
+  subTotal                        Decimal? @db.Decimal(10,2)
+  vatTotal                        Decimal @db.Decimal(10,2)
+  vatPercent                      String?
+  vatVisible                      Boolean @default(true)
 
+  minimumDeliveryValue            Decimal? @db.Decimal(10,2)
+  differenceToMinimumDeliveryValue Decimal? @db.Decimal(10,2)
 
+  payRestaurant                   Decimal? @db.Decimal(10,2)
+  riderTip                        Decimal? @db.Decimal(10,2)
+  collectFromCustomer             Decimal? @db.Decimal(10,2)
 
+  comission                       Decimal? @db.Decimal(10,2)
+  containerCharge                 Decimal? @db.Decimal(10,2)
+  deliveryFee                     Decimal? @db.Decimal(10,2)
+  discountAmountTotal             Decimal? @db.Decimal(10,2)
+  deliveryFeeDiscount             Decimal? @db.Decimal(10,2)
 
+  serviceFeePercent               Decimal? @db.Decimal(5,2)
+  serviceFeeTotal                 Decimal? @db.Decimal(10,2)
+  serviceTax                      Decimal? @db.Decimal(10,2)
+  serviceTaxValue                 Decimal? @db.Decimal(10,2)
 
+  order                           Order?
+
+  @@map("prices")
+}
+
+model LocalInfo {
+  id                      String  @id @default(cuid())
+  countryCode             String  @db.VarChar(2) // ISO 3166-1 alpha-2
+  currencySymbol          String
+  platform                String
+  platformKey             String
+  currencySymbolPosition  String?
+  currencySymbolSpaces    String?
+  decimalDigits           String?
+  decimalSeparator        String?
+  email                   String?
+  phone                   String?
+  thousandsSeparator      String?
+  website                 String?
+
+  orders                  Order[]
+
+  @@map("local_info")
+}
+
+model PlatformRestaurant {
+  id      String  @id @default(cuid())
+  platformId String @unique // ID on delivery platform
+
+  orders  Order[]
+
+  @@map("platform_restaurants")
+}
+
+model Product {
+  id                        String  @id @default(cuid())
+  orderId                   String
+  order                     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  platformId                String? // ID on platform
+  categoryName              String?
+  name                      String?
+  description               String?
+  paidPrice                 Decimal? @db.Decimal(10,2)
+  unitPrice                 Decimal? @db.Decimal(10,2)
+  quantity                  String
+  remoteCode                String? // POS-side product identifier
+  comment                   String? @db.Text
+  discountAmount            String?
+  halfHalf                  Boolean @default(false)
+  vatPercentage             String?
+
+  itemUnavailabilityHandling ItemUnavailabilityHandling?
+
+  // Variation
+  variationName             String?
+
+  // Relations
+  toppings                  Topping[]
+  discounts                 Discount[]
+  selectedChoices           Json? // Flexible field for choices
+
+  @@map("products")
+}
+
+model Topping {
+  id            String  @id @default(cuid())
+  productId     String
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  parentId      String? // For nested toppings
+  parent        Topping? @relation("ToppingChildren", fields: [parentId], references: [id])
+  children      Topping[] @relation("ToppingChildren")
+
+  platformId    String? // ID on platform
+  name          String
+  price         Decimal @default(0) @db.Decimal(10,2)
+  quantity      Int
+  remoteCode    String? // POS-side topping identifier
+  type          ToppingType?
+
+  itemUnavailabilityHandling ItemUnavailabilityHandling?
+
+  discounts     Discount[]
+
+  @@map("toppings")
+}
+
+model Discount {
+  id        String  @id @default(cuid())
+  name      String?
+  amount    Decimal @default(0) @db.Decimal(10,2)
+  type      String? // e.g., "FIRST_ORDER"
+
+  // Polymorphic relations
+  orderId   String?
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  toppingId String?
+  topping   Topping? @relation(fields: [toppingId], references: [id], onDelete: Cascade)
+
+  sponsorships Sponsorship[]
+
+  @@map("discounts")
+}
+
+model Sponsorship {
+  id         String        @id @default(cuid())
+  discountId String
+  discount   Discount      @relation(fields: [discountId], references: [id], onDelete: Cascade)
+
+  sponsor    SponsorType
+  amount     Decimal       @db.Decimal(10,2)
+
+  @@map("sponsorships")
+}
+
+model DeliveryFee {
+  id      String  @id @default(cuid())
+  orderId String
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  name    String?
+  value   Decimal? @db.Decimal(10,2)
+
+  @@map("delivery_fees")
+}
+
+model Voucher {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  code    String
+  amount  Decimal @db.Decimal(10,2)
+
+  @@map("vouchers")
+}
+
+// Enums
+enum ExpeditionType {
+  pickup
+  delivery
+}
+
+enum PaymentStatus {
+  pending
+  paid
+}
+
+enum ItemUnavailabilityHandling {
+  REMOVE
+  REDUCE_QUANTITY
+  CALL_CUSTOMER_AND_REPLACE
+  CANCEL_ORDER
+}
+
+enum ToppingType {
+  PRODUCT
+  VARIANT
+  EXTRA
+}
+
+enum SponsorType {
+  PLATFORM
+  VENDOR
+  THIRD_PARTY
+}

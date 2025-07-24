@@ -1,0 +1,43 @@
+main-server/
+├── server.ts                   # 🔌 Uygulama başlatıcısı (Express + WebSocket)
+├── app.ts                      # 🔧 Express App (middleware + routes)
+├── .env                        # 🌱 Ortam değişkenleri (JWT_SECRET, DB URL)
+├── tsconfig.json
+├── package.json
+
+├── prisma/
+│   ├── schema.prisma           # 🗄️ Veritabanı modeli (Restoran, Sipariş)
+│   └── client.ts               # Prisma Client setup
+
+├── src/
+│   ├── routes/
+│   │   ├──
+│   │   ├── authRoutes.ts       # 🔐 POST /login
+│   │   └── orderRoutes.ts      # 🧾 GET /orders (JWT protected)
+
+│   ├── controllers/
+│   │   ├── webhookController.ts
+│   │   ├── authController.ts
+│   │   └── orderController.ts
+
+│   ├── services/
+│   │   ├── authService.ts
+│   │   └── orderService.ts
+
+│   ├── repositories/
+│   │   ├── restaurantRepository.ts
+│   │   └── orderRepository.ts
+
+│   ├── middleware/
+│   │   └── authMiddleware.ts   # 🔐 JWT kontrolü
+
+│   ├── websocket/
+│   │   └── socket.ts           # 🌐 WebSocket setup
+
+│   ├── config/
+│   │   ├── jwt.ts              # JWT token üretme/çözme
+│   │   └── environment.ts      # process.env tür tanımı vs.
+
+│   └── types/
+│       └── order.types.ts      # Sipariş tipi
+
