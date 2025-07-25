@@ -71,6 +71,8 @@ model Order {
   orderPreparedUrl                   String?
   orderPreparationTimeAdjustmentUrl  String?
 
+  status String? // Siparişin güncel durumu (örn: order_accepted, order_rejected, vs)
+
   @@map("orders")
 }
 
