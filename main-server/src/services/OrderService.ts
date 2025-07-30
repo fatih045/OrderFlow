@@ -68,7 +68,7 @@ export class OrderService {
             console.log(`Order created successfully with ID: ${result.data.id}`);
 
 
-            // Broadcast the new order to WebSocket clients
+            // Broadcast the new order to WebSocket client
             broadcastNewOrder(result.data);
 
             return {
