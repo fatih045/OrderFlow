@@ -1,4 +1,3 @@
-import { router, controller } from '../routes/deliveryHeroRoutes';
 
 export interface ValidationError {
   field: string;
@@ -233,8 +232,6 @@ export function validateOrder(order: any): ValidationResult {
 export function isValidOrder(order: any): boolean {
   return validateOrder(order).isValid;
 }
-// 1. Sipariş durumunu güncelle (PUT)
-router.put('/order/status/:orderToken', controller.updateOrderStatus.bind(controller));
 
 // Usage example:
 /*
