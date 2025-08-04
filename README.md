@@ -1,59 +1,166 @@
-# OrderflowFrontend
+# OrderFlow Frontend Dashboard
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.1.2.
+Modern ve kullanıcı dostu bir sipariş yönetim dashboard'u.
 
-## Development server
+## 🚀 Özellikler
 
-To start a local development server, run:
+### 📊 **Ana Sayfa (Main Page)**
+- **Gelen Siparişler Kuyruğu**: Yemeksepeti'nden gelen yeni siparişler
+- **Kabul/Red Butonları**: Her sipariş için anında karar verme
+- **Gerçek Zamanlı Güncellemeler**: WebSocket ile anlık bildirimler
+- **Ses Bildirimleri**: Yeni sipariş geldiğinde ses uyarısı
+- **Responsive Tasarım**: Mobil ve tablet uyumlu
 
+### 📋 **Sidebar (Aktif Siparişler)**
+- **Durum Güncellemeleri**: Sipariş hazırlama sürecini takip
+- **Progress Bar**: Sipariş durumunu görsel olarak göster
+- **Durum Butonları**: 
+  - 👨‍🍳 Hazırlanıyor
+  - ✅ Hazır
+  - 🚚 Kurye Bildir
+  - 🎉 Teslim Edildi
+
+### 🔔 **Bildirim Sistemi**
+- **Header Bildirimleri**: Tüm önemli olaylar için bildirimler
+- **Bildirim Geçmişi**: Son 10 bildirim
+- **Okunmamış Bildirim Sayacı**: Kırmızı badge ile gösterim
+
+### 📱 **Responsive Tasarım**
+- **Desktop**: Tam ekran dashboard
+- **Tablet**: Sidebar üstte, main content altta
+- **Mobile**: Tek sütun düzen
+
+## 🛠️ Teknolojiler
+
+- **Angular 20**: Modern component-based framework
+- **TypeScript**: Type-safe development
+- **WebSocket**: Gerçek zamanlı iletişim
+- **CSS Grid & Flexbox**: Modern layout
+- **Signal API**: Reactive state management
+
+## 🚀 Kurulum ve Çalıştırma
+
+### Gereksinimler
+- Node.js 18+ 
+- npm veya yarn
+
+### Kurulum
 ```bash
-ng serve
+# Dependency'leri yükle
+npm install
+
+# Development server'ı başlat
+npm start
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+### Backend Bağlantısı
+Frontend otomatik olarak `http://localhost:3000` adresindeki backend'e bağlanır.
 
-## Code scaffolding
+## 📡 API Endpoint'leri
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+### WebSocket Bağlantısı
+- **URL**: `ws://localhost:3000`
+- **Mesaj Tipleri**:
+  - `NEW_ORDER`: Yeni sipariş
+  - `ORDER_STATUS_UPDATE`: Durum güncellemesi
+  - `ORDER_ACCEPTED`: Sipariş kabul edildi
+  - `ORDER_REJECTED`: Sipariş reddedildi
 
-```bash
-ng generate component component-name
+### HTTP Endpoint'leri
+- **PUT** `/delivery-hero/order/status/:orderToken`: Sipariş durumu güncelle
+- **POST** `/delivery-hero/orders/:orderToken/preparation-completed`: Kurye bildirimi
+
+## 🎨 Tasarım Özellikleri
+
+### Renk Paleti
+- **Primary**: #667eea (Mavi-Mor gradient)
+- **Success**: #2ed573 (Yeşil)
+- **Warning**: #ffcc02 (Sarı)
+- **Error**: #ff4757 (Kırmızı)
+- **Info**: #1976d2 (Mavi)
+
+### Animasyonlar
+- **Hover Effects**: Buton ve kart hover animasyonları
+- **Transitions**: Smooth geçişler
+- **Loading States**: Yükleme durumları
+
+## 📱 Kullanım Senaryoları
+
+### 1. Yeni Sipariş Geldiğinde
+1. Ses bildirimi çalar
+2. Header'da bildirim sayısı artar
+3. Main page'de sipariş kartı görünür
+4. Kabul/Red butonları aktif olur
+
+### 2. Sipariş Kabul Edildiğinde
+1. Main page'den sipariş kaybolur
+2. Sidebar'a taşınır
+3. Durum "Kabul Edildi" olur
+4. Progress bar %25'e çıkar
+
+### 3. Sipariş Hazırlandığında
+1. Sidebar'da "Hazırlanıyor" butonu görünür
+2. Tıklandığında durum güncellenir
+3. Progress bar %50'ye çıkar
+4. Bildirim gönderilir
+
+### 4. Sipariş Hazır Olduğunda
+1. "Hazır" butonu görünür
+2. Progress bar %75'e çıkar
+3. Teslimat tipine göre kurye bildirimi
+
+## 🔧 Geliştirme
+
+### Component Yapısı
+```
+app/
+├── header/          # Bildirimler ve bağlantı durumu
+├── main-content/    # Gelen siparişler kuyruğu
+├── sidebar/         # Aktif siparişler ve durum güncellemeleri
+└── footer/          # Saat ve bağlantı durumu
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+### State Management
+- **Signal API**: Angular 20'nin yeni reactive state management'ı
+- **Component Communication**: Event-based iletişim
+- **WebSocket Integration**: Gerçek zamanlı veri akışı
 
-```bash
-ng generate --help
-```
+## 🐛 Sorun Giderme
 
-## Building
+### WebSocket Bağlantı Sorunu
+- Backend'in çalıştığından emin olun
+- `http://localhost:3000` adresine erişilebilir olmalı
+- Browser console'da hata mesajlarını kontrol edin
 
-To build the project run:
+### Bildirimler Çalışmıyor
+- Browser'ın bildirim iznini kontrol edin
+- HTTPS gerekliliği olabilir (production'da)
 
-```bash
-ng build
-```
+### Responsive Sorunları
+- Browser developer tools ile test edin
+- CSS media query'leri kontrol edin
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## 📈 Gelecek Özellikler
 
-## Running unit tests
+- [ ] **Dark Mode**: Karanlık tema desteği
+- [ ] **Ses Ayarları**: Bildirim sesi kontrolü
+- [ ] **Filtreler**: Sipariş durumuna göre filtreleme
+- [ ] **İstatistikler**: Günlük/haftalık raporlar
+- [ ] **Çoklu Restoran**: Birden fazla restoran desteği
+- [ ] **PWA**: Progressive Web App özellikleri
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## 🤝 Katkıda Bulunma
 
-```bash
-ng test
-```
+1. Fork yapın
+2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
+3. Commit yapın (`git commit -m 'Add amazing feature'`)
+4. Push yapın (`git push origin feature/amazing-feature`)
+5. Pull Request oluşturun
 
-## Running end-to-end tests
+## 📄 Lisans
 
-For end-to-end (e2e) testing, run:
+Bu proje MIT lisansı altında lisanslanmıştır.
 
-```bash
-ng e2e
-```
+---
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+**OrderFlow Dashboard** - Modern sipariş yönetim sistemi 🍽️

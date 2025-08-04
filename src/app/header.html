@@ -1,0 +1,47 @@
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <span class="logo-icon">🍽️</span>
+            <span class="logo-text">OrderFlow</span>
+        </div>
+    </div>
+
+    <div class="header-center">
+        <div class="status-indicator">
+            <div class="status-dot" [class.online]="isOnline()"></div>
+            <span class="status-text">{{ isOnline() ? 'Bağlı' : 'Bağlantı Yok' }}</span>
+        </div>
+    </div>
+
+    <div class="header-right">
+        <div class="notifications">
+            <button class="notification-btn" (click)="toggleNotifications()">
+                <span class="notification-icon">🔔</span>
+                <span class="notification-badge" *ngIf="unreadNotifications() > 0">{{ unreadNotifications() }}</span>
+            </button>
+
+            <div class="notification-dropdown" *ngIf="showNotifications()">
+                <div class="notification-header">
+                    <h4>Bildirimler</h4>
+                    <button class="clear-btn" (click)="clearNotifications()">Temizle</button>
+                </div>
+                <div class="notification-list">
+                    <div class="notification-item" *ngFor="let notification of notifications()">
+                        <div class="notification-content">
+                            <div class="notification-title">{{ notification.title }}</div>
+                            <div class="notification-message">{{ notification.message }}</div>
+                            <div class="notification-time">{{ notification.time | date:'HH:mm' }}</div>
+                        </div>
+                    </div>
+                    <div class="no-notifications" *ngIf="notifications().length === 0">
+                        Bildirim yok
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="user-menu">
+            <span class="user-name">Restoran Yöneticisi</span>
+        </div>
+    </div>
+</header>

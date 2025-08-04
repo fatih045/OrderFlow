@@ -1,0 +1,15 @@
+<div class="order-card">
+    <div class="order-header">
+        <div class="order-code">Sipariş Kodu: <b>{{ order?.code }}</b></div>
+        <div class="order-date">{{ order?.createdAt | date:'short' }}</div>
+    </div>
+    <div class="order-customer">
+        <span>👤</span> {{ order?.customer?.firstName }} {{ order?.customer?.lastName }}
+    </div>
+    <div class="order-total">
+        <span>💰</span> Toplam: <b>{{ order?.price?.total | currency:'TRY':'symbol' }}</b>
+    </div>
+    <div class="order-status">
+        <span>Durum:</span> <b>{{ order?.status || 'Beklemede' }}</b>
+    </div>
+</div>

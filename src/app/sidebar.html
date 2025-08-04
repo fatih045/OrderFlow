@@ -1,0 +1,91 @@
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <h2>Aktif Siparişler</h2>
+        <div class="sidebar-stats">
+            <span class="stat-badge">{{ activeOrders().length }}</span>
+        </div>
+    </div>
+
+    <div class="sidebar-content">
+        <div class="orders-list" *ngIf="activeOrders().length > 0; else noActiveOrdersTemplate">
+            <div class="order-item" *ngFor="let order of activeOrders()">
+                <div class="order-item-header">
+                    <div class="order-info">
+                        <div class="order-code">#{{ order.code }}</div>
+                        <div class="order-time">{{ order.createdAt | date:'HH:mm' }}</div>
+                    </div>
+                    <div class="order-status-badge" [class]="'status-' + order.status">
+                        {{ getStatusText(order.status) }}
+                    </div>
+                </div>
+
+                <div class="order-item-details">
+                    <div class="customer-name">{{ order.customer?.name || 'Müşteri' }}</div>
+                    <div class="order-total">{{ order.totalAmount | currency:'TRY':'symbol':'1.2-2' }}</div>
+                </div>
+
+                <div class="order-item-actions">
+                    <button class="status-btn preparing" *ngIf="order.status === 'accepted'"
+                        (click)="updateOrderStatus(order, 'order_preparing')">
+                        <span class="btn-icon">👨‍🍳</span>
+                        <span class="btn-text">Hazırlanıyor</span>
+                    </button>
+
+                    <button class="status-btn ready" *ngIf="order.status === 'preparing'"
+                        (click)="updateOrderStatus(order, 'order_ready')">
+                        <span class="btn-icon">✅</span>
+                        <span class="btn-text">Hazır</span>
+                    </button>
+
+                    <button class="status-btn prepared"
+                        *ngIf="order.status === 'ready' && order.delivery?.type === 'delivery'"
+                        (click)="markOrderPrepared(order)">
+                        <span class="btn-icon">🚚</span>
+                        <span class="btn-text">Kurye Bildir</span>
+                    </button>
+
+                    <button class="status-btn delivered" *ngIf="order.status === 'ready' || order.status === 'prepared'"
+                        (click)="updateOrderStatus(order, 'order_delivered')">
+                        <span class="btn-icon">🎉</span>
+                        <span class="btn-text">Teslim Edildi</span>
+                    </button>
+                </div>
+
+                <div class="order-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" [style.width.%]="getProgressPercentage(order.status)"></div>
+                    </div>
+                    <div class="progress-steps">
+                        <div class="step" [class.active]="order.status !== 'pending'">
+                            <span class="step-icon">📋</span>
+                            <span class="step-text">Kabul</span>
+                        </div>
+                        <div class="step"
+                            [class.active]="['preparing', 'ready', 'prepared', 'delivered'].includes(order.status)">
+                            <span class="step-icon">👨‍🍳</span>
+                            <span class="step-text">Hazırlanıyor</span>
+                        </div>
+                        <div class="step" [class.active]="['ready', 'prepared', 'delivered'].includes(order.status)">
+                            <span class="step-icon">✅</span>
+                            <span class="step-text">Hazır</span>
+                        </div>
+                        <div class="step" [class.active]="order.status === 'delivered'">
+                            <span class="step-icon">🎉</span>
+                            <span class="step-text">Teslim</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <ng-template #noActiveOrdersTemplate>
+            <div class="no-active-orders">
+                <div class="no-orders-content">
+                    <div class="no-orders-icon">📋</div>
+                    <h3>Aktif Sipariş Yok</h3>
+                    <p>Kabul edilen siparişler burada görünecek</p>
+                </div>
+            </div>
+        </ng-template>
+    </div>
+</aside>

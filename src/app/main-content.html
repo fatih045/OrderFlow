@@ -1,0 +1,80 @@
+<div class="main-content">
+    <div class="content-header">
+        <h1>Gelen Siparişler</h1>
+        <div class="queue-stats">
+            <span class="stat-item">
+                <span class="stat-number">{{ pendingOrders().length }}</span>
+                <span class="stat-label">Bekleyen</span>
+            </span>
+            <span class="stat-item">
+                <span class="stat-number">{{ acceptedOrders().length }}</span>
+                <span class="stat-label">Kabul Edilen</span>
+            </span>
+        </div>
+    </div>
+
+    <div class="orders-container">
+        <div class="orders-grid" *ngIf="pendingOrders().length > 0; else noOrdersTemplate">
+            <div class="order-card" *ngFor="let order of pendingOrders()">
+                <div class="order-header">
+                    <div class="order-id">
+                        <span class="order-number">#{{ order.code }}</span>
+                        <span class="order-time">{{ order.createdAt | date:'HH:mm' }}</span>
+                    </div>
+                    <div class="order-status pending">Bekliyor</div>
+                </div>
+
+                <div class="order-details">
+                    <div class="customer-info">
+                        <div class="customer-name">{{ order.customer?.name || 'Müşteri' }}</div>
+                        <div class="customer-phone">{{ order.customer?.phone || 'Telefon yok' }}</div>
+                    </div>
+
+                    <div class="order-items">
+                        <div class="item" *ngFor="let item of order.items">
+                            <span class="item-quantity">{{ item.quantity }}x</span>
+                            <span class="item-name">{{ item.name }}</span>
+                            <span class="item-price">{{ item.price | currency:'TRY':'symbol':'1.2-2' }}</span>
+                        </div>
+                    </div>
+
+                    <div class="order-total">
+                        <span class="total-label">Toplam:</span>
+                        <span class="total-amount">{{ order.totalAmount | currency:'TRY':'symbol':'1.2-2' }}</span>
+                    </div>
+
+                    <div class="delivery-info" *ngIf="order.delivery">
+                        <div class="delivery-type">
+                            <span class="delivery-icon">🚚</span>
+                            <span>{{ order.delivery.type === 'delivery' ? 'Teslimat' : 'Gel Al' }}</span>
+                        </div>
+                        <div class="delivery-address" *ngIf="order.delivery.address">
+                            {{ order.delivery.address }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="order-actions">
+                    <button class="btn-accept" (click)="acceptOrder(order)">
+                        <span class="btn-icon">✅</span>
+                        <span class="btn-text">Kabul Et</span>
+                    </button>
+                    <button class="btn-reject" (click)="rejectOrder(order)">
+                        <span class="btn-icon">❌</span>
+                        <span class="btn-text">Reddet</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <ng-template #noOrdersTemplate>
+            <div class="no-orders">
+                <div class="no-orders-content">
+                    <div class="no-orders-icon">🍽️</div>
+                    <h3>Bekleyen Sipariş Yok</h3>
+                    <p>Yeni siparişler geldiğinde burada görünecek</p>
+                </div>
+            </div>
+        </ng-template>
+    </div>
+</div>
