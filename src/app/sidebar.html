@@ -20,34 +20,58 @@
                 </div>
 
                 <div class="order-item-details">
-                    <div class="customer-name">{{ order.customer?.name || 'Müşteri' }}</div>
-                    <div class="order-total">{{ order.totalAmount | currency:'TRY':'symbol':'1.2-2' }}</div>
+                    <div class="customer-info">
+                        <div class="customer-name">{{ order.customer?.name || 'Müşteri' }}</div>
+                        <div class="customer-phone">{{ order.customer?.phone || 'Telefon yok' }}</div>
+                    </div>
+                    <div class="order-info">
+                        <div class="order-total">{{ order.totalAmount | currency:'TRY':'symbol':'1.2-2' }}</div>
+                        <div class="order-items">{{ order.items?.length || 0 }} ürün</div>
+                    </div>
                 </div>
 
                 <div class="order-item-actions">
-                    <button class="status-btn preparing" *ngIf="order.status === 'accepted'"
-                        (click)="updateOrderStatus(order, 'order_preparing')">
-                        <span class="btn-icon">👨‍🍳</span>
-                        <span class="btn-text">Hazırlanıyor</span>
+                    <!-- Debug: Status bilgisi -->
+                    <div
+                        style="font-size: 10px; color: #999; margin-bottom: 8px; background: #f0f0f0; padding: 4px; border-radius: 4px;">
+                        <div>Debug: Status = {{ order.status }}</div>
+                        <div>Callback URL'ler: {{ getCallbackUrlsInfo(order) }}</div>
+                    </div>
+
+                    <!-- Sadece callback URL varsa butonları göster -->
+                    <button class="status-btn preparing"
+                        *ngIf="(order.status === 'pending') && hasCallbackUrl(order, 'orderAcceptedUrl')"
+                        (click)="updateOrderStatus(order, 'order_accepted')">
+                        <span class="btn-icon">✅</span>
+                        <span class="btn-text">Kabul Et</span>
                     </button>
 
-                    <button class="status-btn ready" *ngIf="order.status === 'preparing'"
-                        (click)="updateOrderStatus(order, 'order_ready')">
-                        <span class="btn-icon">✅</span>
-                        <span class="btn-text">Hazır</span>
+                    <button class="status-btn rejected"
+                        *ngIf="(order.status === 'pending') && hasCallbackUrl(order, 'orderRejectedUrl')"
+                        (click)="updateOrderStatus(order, 'order_rejected')">
+                        <span class="btn-icon">❌</span>
+                        <span class="btn-text">Reddet</span>
+                    </button>
+
+                    <button class="status-btn picked-up"
+                        *ngIf="(order.status === 'accepted' || order.status === 'order_accepted' || order.status === 'preparing' || order.status === 'order_preparing') && hasCallbackUrl(order, 'orderPickedUpUrl')"
+                        (click)="updateOrderStatus(order, 'order_picked_up')">
+                        <span class="btn-icon">🚚</span>
+                        <span class="btn-text">Kurye Aldı</span>
                     </button>
 
                     <button class="status-btn prepared"
-                        *ngIf="order.status === 'ready' && order.delivery?.type === 'delivery'"
+                        *ngIf="(order.status === 'accepted' || order.status === 'order_accepted' || order.status === 'preparing' || order.status === 'order_preparing') && hasCallbackUrl(order, 'orderPreparedUrl')"
                         (click)="markOrderPrepared(order)">
-                        <span class="btn-icon">🚚</span>
-                        <span class="btn-text">Kurye Bildir</span>
+                        <span class="btn-icon">👨‍🍳</span>
+                        <span class="btn-text">Yemek Hazır</span>
                     </button>
 
-                    <button class="status-btn delivered" *ngIf="order.status === 'ready' || order.status === 'prepared'"
-                        (click)="updateOrderStatus(order, 'order_delivered')">
-                        <span class="btn-icon">🎉</span>
-                        <span class="btn-text">Teslim Edildi</span>
+                    <button class="status-btn product-modification"
+                        *ngIf="(order.status === 'accepted' || order.status === 'order_accepted') && hasCallbackUrl(order, 'orderProductModificationUrl')"
+                        (click)="modifyProduct(order)">
+                        <span class="btn-icon">📝</span>
+                        <span class="btn-text">Ürün Değiştir</span>
                     </button>
                 </div>
 
@@ -61,15 +85,17 @@
                             <span class="step-text">Kabul</span>
                         </div>
                         <div class="step"
-                            [class.active]="['preparing', 'ready', 'prepared', 'delivered'].includes(order.status)">
+                            [class.active]="['preparing', 'ready', 'prepared', 'delivered', 'order_preparing', 'order_ready', 'order_prepared', 'order_delivered', 'picked_up', 'order_picked_up'].includes(order.status)">
                             <span class="step-icon">👨‍🍳</span>
                             <span class="step-text">Hazırlanıyor</span>
                         </div>
-                        <div class="step" [class.active]="['ready', 'prepared', 'delivered'].includes(order.status)">
+                        <div class="step"
+                            [class.active]="['ready', 'prepared', 'delivered', 'order_ready', 'order_prepared', 'order_delivered'].includes(order.status)">
                             <span class="step-icon">✅</span>
                             <span class="step-text">Hazır</span>
                         </div>
-                        <div class="step" [class.active]="order.status === 'delivered'">
+                        <div class="step"
+                            [class.active]="order.status === 'delivered' || order.status === 'order_delivered'">
                             <span class="step-icon">🎉</span>
                             <span class="step-text">Teslim</span>
                         </div>

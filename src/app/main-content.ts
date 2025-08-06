@@ -5,7 +5,7 @@ import { NotificationService } from './services/notification.service';
 interface Order {
   id: string;
   code: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'preparing' | 'ready' | 'delivered';
+  status: 'pending' | 'accepted' | 'rejected' | 'preparing' | 'ready' | 'delivered' | 'prepared' | 'picked_up' | 'order_accepted' | 'order_preparing' | 'order_ready' | 'order_prepared' | 'order_delivered' | 'order_picked_up';
   customer?: {
     name: string;
     phone: string;
@@ -22,6 +22,12 @@ interface Order {
     address?: string;
   };
   token?: string;
+  // Callback URL'ler
+  orderAcceptedUrl?: string;
+  orderRejectedUrl?: string;
+  orderPickedUpUrl?: string;
+  orderPreparedUrl?: string;
+  orderProductModificationUrl?: string;
 }
 
 @Component({
@@ -95,19 +101,52 @@ export class MainContent implements OnInit, OnDestroy {
     }
   }
 
-  private handleNewOrder(orderData: Order) {
+  private handleNewOrder(orderData: any) {
+    console.log('Backend\'den gelen ham veri:', orderData);
+
+    // Backend'den gelen veriyi frontend formatına çevir
     const newOrder: Order = {
-      ...orderData,
+      id: orderData.id,
+      code: orderData.code,
       status: 'pending',
-      createdAt: new Date()
+      customer: {
+        name: orderData.customer ? `${orderData.customer.firstName || ''} ${orderData.customer.lastName || ''}`.trim() : 'Müşteri',
+        phone: orderData.customer?.mobilePhone || 'Telefon yok'
+      },
+      items: orderData.products?.map((product: any) => ({
+        name: product.name || 'Ürün',
+        quantity: parseInt(product.quantity) || 1,
+        price: parseFloat(product.paidPrice) || 0
+      })) || [],
+      totalAmount: parseFloat(orderData.price?.grandTotal) || 0,
+      createdAt: new Date(orderData.createdAt),
+      delivery: {
+        type: orderData.expeditionType || 'delivery',
+        address: orderData.delivery ?
+          `${orderData.delivery.street || ''} ${orderData.delivery.number || ''}, ${orderData.delivery.city || ''}`.trim() :
+          undefined
+      },
+      token: orderData.token,
+      // Callback URL'ler
+      orderAcceptedUrl: orderData.orderAcceptedUrl,
+      orderRejectedUrl: orderData.orderRejectedUrl,
+      orderPickedUpUrl: orderData.orderPickedUpUrl,
+      orderPreparedUrl: orderData.orderPreparedUrl,
+      orderProductModificationUrl: orderData.orderProductModificationUrl
     };
+
+    console.log('Frontend\'e çevrilen veri:', newOrder);
+    console.log('Müşteri adı:', newOrder.customer?.name);
+    console.log('Telefon:', newOrder.customer?.phone);
+    console.log('Toplam tutar:', newOrder.totalAmount);
+    console.log('Ürünler:', newOrder.items);
 
     this.pendingOrders.update(orders => [newOrder, ...orders]);
 
     // Bildirim gönder
     this.notificationService.addNotification({
       title: 'Yeni Sipariş',
-      message: `#${orderData.code} siparişi geldi`,
+      message: `#${orderData.code} siparişi geldi - ${newOrder.customer?.name}`,
       time: new Date(),
       type: 'new_order'
     });
@@ -117,11 +156,22 @@ export class MainContent implements OnInit, OnDestroy {
   }
 
   private handleStatusUpdate(updateData: any) {
+    console.log('Durum güncelleme alındı:', updateData);
+
     // Sidebar'daki siparişlerin durumunu güncelle
     this.acceptedOrders.update(orders =>
       orders.map(order =>
         order.id === updateData.orderId
-          ? { ...order, status: updateData.status }
+          ? { ...order, status: updateData.status.replace('order_', '') }
+          : order
+      )
+    );
+
+    // Pending siparişlerde de güncelleme yap
+    this.pendingOrders.update(orders =>
+      orders.map(order =>
+        order.id === updateData.orderId
+          ? { ...order, status: updateData.status.replace('order_', '') }
           : order
       )
     );
@@ -136,15 +186,25 @@ export class MainContent implements OnInit, OnDestroy {
   }
 
   private handleOrderAccepted(orderData: Order) {
+    console.log('Sipariş kabul edildi:', orderData.id);
+
     // Pending'den accepted'e taşı
     this.pendingOrders.update(orders =>
       orders.filter(order => order.id !== orderData.id)
     );
 
-    this.acceptedOrders.update(orders => [orderData, ...orders]);
+    // Accepted orders'a ekle (eğer yoksa) - status'u accepted olarak set et
+    const acceptedOrder = { ...orderData, status: 'accepted' as any };
+    this.acceptedOrders.update(orders => {
+      const exists = orders.find(order => order.id === orderData.id);
+      if (!exists) {
+        return [acceptedOrder, ...orders];
+      }
+      return orders;
+    });
 
-    // Sidebar'a bildir
-    window.dispatchEvent(new CustomEvent('orderAccepted', { detail: orderData }));
+    // Sidebar'a bildir - status'u accepted olarak gönder
+    window.dispatchEvent(new CustomEvent('orderAccepted', { detail: acceptedOrder }));
   }
 
   private handleOrderRejected(orderData: Order) {
