@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { OrderTransformer, TransformResult } from '../utils/orderTransformer';
 import { Order } from '../types/order.types';
-import {broadcastNewOrder} from "../ws/websocket";
+import { broadcastNewOrder } from "../ws/websocket";
 
 export interface OrderResponse {
     success: boolean;
@@ -68,8 +68,27 @@ export class OrderService {
             console.log(`Order created successfully with ID: ${result.data.id}`);
 
 
+            // Get complete order data with relations for WebSocket
+            const completeOrderData = await this.prisma.order.findUnique({
+                where: { id: result.data.id },
+                include: {
+                    customer: true,
+                    price: true,
+                    delivery: true,
+                    pickup: true,
+                    products: {
+                        include: {
+                            toppings: true,
+                            discounts: true
+                        }
+                    },
+                    discounts: true,
+                    deliveryFees: true
+                }
+            });
+
             // Broadcast the new order to WebSocket client
-            broadcastNewOrder(result.data);
+            broadcastNewOrder(completeOrderData);
 
             return {
                 success: true,

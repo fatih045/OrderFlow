@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { DeliveryHeroService } from '../services/DeliveryHeroService';
+import { broadcastStatusUpdate, broadcastOrderAccepted, broadcastOrderRejected } from '../ws/websocket';
 
 const prisma = new PrismaClient();
 const deliveryHeroService = new DeliveryHeroService();
@@ -11,10 +12,16 @@ export class DeliveryHeroController {
         const { orderToken } = req.params;
         const statusPayload = req.body;
         try {
+            console.log(`Sipariş durumu güncelleme isteği: ${orderToken}`, statusPayload);
+
             const order = await prisma.order.findUnique({ where: { token: orderToken } });
             if (!order) {
+                console.log(`Sipariş bulunamadı: ${orderToken}`);
                 return res.status(404).json({ success: false, error: 'Sipariş bulunamadı' });
             }
+
+            console.log(`Sipariş bulundu: ${order.id}, mevcut status: ${order.status}`);
+
             // Callback URL seçimi: status tipine göre
             let callbackUrl: string | undefined;
             switch (statusPayload.status) {
@@ -27,23 +34,58 @@ export class DeliveryHeroController {
                 case 'order_picked_up':
                     callbackUrl = order.orderPickedUpUrl || undefined;
                     break;
+                case 'order_preparing':
+                case 'order_ready':
+                case 'order_delivered':
+                case 'order_prepared':
+                    // Bu durumlar için callback URL kontrolü yapmıyoruz
+                    callbackUrl = undefined;
+                    break;
                 default:
+                    console.log(`Geçersiz status tipi: ${statusPayload.status}`);
                     return res.status(400).json({ success: false, error: 'Geçersiz status tipi' });
             }
-            if (!callbackUrl) {
-                return res.status(400).json({ success: false, error: 'Callback URL yok, istek atlanmadı.' });
+
+            // Eğer callback URL varsa, external service'e istek gönder
+            if (callbackUrl) {
+                console.log(`Callback URL bulundu: ${callbackUrl}`);
+                try {
+                    const result = await deliveryHeroService.updateOrderStatus(order, statusPayload, callbackUrl);
+                    if (!result.success) {
+                        console.error(`External service hatası: ${result.error}`);
+                        // External service hatası olsa bile local güncellemeyi yapalım
+                        console.log(`External service hatası var ama local güncelleme yapılıyor`);
+                    } else {
+                        console.log(`External service başarılı`);
+                    }
+                } catch (error) {
+                    console.error(`External service exception:`, error);
+                    // Exception olsa bile local güncellemeyi yapalım
+                }
+            } else {
+                console.log(`Callback URL yok, sadece local güncelleme yapılıyor`);
             }
-            const result = await deliveryHeroService.updateOrderStatus(order, statusPayload, callbackUrl);
-            if (!result.success) {
-                return res.status(500).json({ success: false, error: result.error });
-            }
-            // DB'de de status alanını güncelle
+
+            // DB'de status alanını güncelle
             await prisma.order.update({
                 where: { token: orderToken },
                 data: { status: statusPayload.status }
             });
-            return res.status(200).json({ success: true, data: result.data });
+
+            // WebSocket'e durum güncellemesi gönder
+            broadcastStatusUpdate(order.id, statusPayload.status, order.code);
+
+            // Özel durumlar için ek broadcast'ler
+            if (statusPayload.status === 'order_accepted') {
+                broadcastOrderAccepted(order);
+            } else if (statusPayload.status === 'order_rejected') {
+                broadcastOrderRejected(order);
+            }
+
+            console.log(`Sipariş durumu başarıyla güncellendi: ${statusPayload.status}`);
+            return res.status(200).json({ success: true, message: 'Sipariş durumu güncellendi' });
         } catch (err) {
+            console.error('Sipariş durumu güncelleme hatası:', err);
             return res.status(500).json({ success: false, error: 'Sunucu hatası' });
         }
     }

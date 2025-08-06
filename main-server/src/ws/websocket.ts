@@ -30,3 +30,49 @@ export function broadcastNewOrder(order: any) {
         }
     }
 }
+
+// Sipariş durumu güncellendiğinde bunu çağır:
+export function broadcastStatusUpdate(orderId: string, status: string, code: string) {
+    const message = JSON.stringify({
+        type: 'ORDER_STATUS_UPDATE',
+        payload: {
+            orderId: orderId,
+            status: status,
+            code: code
+        }
+    });
+
+    for (const client of clients) {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+        }
+    }
+}
+
+// Sipariş kabul edildiğinde bunu çağır:
+export function broadcastOrderAccepted(order: any) {
+    const message = JSON.stringify({
+        type: 'ORDER_ACCEPTED',
+        payload: order
+    });
+
+    for (const client of clients) {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+        }
+    }
+}
+
+// Sipariş reddedildiğinde bunu çağır:
+export function broadcastOrderRejected(order: any) {
+    const message = JSON.stringify({
+        type: 'ORDER_REJECTED',
+        payload: order
+    });
+
+    for (const client of clients) {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+        }
+    }
+}
