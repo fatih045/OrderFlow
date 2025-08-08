@@ -63,7 +63,7 @@ main-server/
 - `DeliveryHeroController.markOrderPrepared` yalnızca teslimat (`delivery`) siparişlerinde ve `orderPreparedUrl` varsa çalışır.
 - Dış servise POST atar, ardından lokal DB’de `status = 'order_prepared'` olarak günceller.
 
-## 🚪 Gerçek Endpoint’ler
+## 🚪
 
 Base path’ler `app.ts` üzerinde tanımlıdır:
 - `app.use('/orders', orderRoutes)`
