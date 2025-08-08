@@ -1,159 +1,198 @@
 
-# 🍔 OrderFlow - Yemeksepeti Entegrasyonlu Gerçek Zamanlı Sipariş Takip Sistemi
+## 🍔 OrderFlow - DeliveryHero/Yemeksepeti Entegrasyonlu Gerçek Zamanlı Sipariş Takip Sistemi
 
-OrderFlow, restoranların Yemeksepeti'nden gelen siparişleri **anlık olarak takip etmesini**, **durum güncellemelerini** yapmasını ve **istatistikleri** izlemesini sağlayan tam entegre bir backend sistemidir.
+OrderFlow; gelen siparişleri alır, doğrular, dönüştürüp PostgreSQL veritabanına kaydeder ve frontend’e WebSocket ile yayınlar. Ayrıca sipariş durum değişikliklerinde gerekli callback URL’lerine istek atar.
 
-## ✨ Proje Amacı
+## ⚙️ Teknolojiler
 
-* Yemeksepeti tarafından gelen sipariş verilerini webhook ile al.
-* Veriyi doğrula, dönüştür, veritabanına kaydet.
-* Angular tabanlı frontend'e WebSocket ile güncel siparişleri aktar.
-* Sipariş durumu güncellemelerini hem Yemeksepeti'ne hem frontend'e ilet.
+| **Teknoloji** | **Amaç** |
+| --- | --- |
+| Node.js, Express.js | HTTP sunucusu ve routing |
+| TypeScript | Tip güvenliği |
+| Prisma ORM | DB erişimi |
+| PostgreSQL | Kalıcı veri |
+| ws (WebSocket) | Gerçek zamanlı yayın |
 
----
-
-## ⚙️ Kullanılan Teknolojiler
-
-| Teknoloji   | Amaç                              |
-| ----------- | --------------------------------- |
-| Node.js     | Sunucu tarafı çalışma ortamı      |
-| Express.js  | HTTP sunucusu ve routing          |
-| Prisma ORM  | Veritabanı işlemleri (MySQL)      |
-| MySQL       | Kalıcı veri saklama               |
-| WebSocket   | Gerçek zamanlı iletim (Socket.IO) |
-| TypeScript  | Tip güvenli backend geliştirme    |
-| Ngrok (dev) | Webhook testleri için tünelleme   |
-
----
-
-## 🔄 Sistem İletişim Yapısı
-
-| Kaynak             | Hedef    | Protokol  | Amaç                          |
-| ------------------ | -------- | --------- | ----------------------------- |
-| Yemeksepeti        | Backend  | Webhook   | Yeni sipariş, durum bildirimi |
-| Frontend (Angular) | Backend  | REST      | Sipariş sorgu ve güncelleme   |
-| Backend            | Frontend | WebSocket | Gerçek zamanlı sipariş akışı  |
-
----
-
-## 📁 Dosya Yapısı (Katmanlı Mimari)
+## 📁 Proje Yapısı (Backend: `main-server`)
 
 ```
-src/
-├── controllers/        → HTTP isteklerini karşılar
-│   ├── orderController.ts
-│   └── statusController.ts
-├── services/          → İş mantığını yönetir
-│   ├── orderService.ts
-│   └── statusService.ts
-├── repositories/      → DB işlemleri (Prisma)
-│   ├── orderRepository.ts
-│   └── restaurantRepository.ts
-├── routes/            → Express router tanımları
-│   ├── orderRoutes.ts
-│   └── statusRoutes.ts
-├── sockets/           → WebSocket olay yönetimi
-│   └── socketHandler.ts
-├── middleware/        → Hata ve auth yönetimi
-│   ├── errorHandler.ts
-│   └── authMiddleware.ts
-├── prisma/            → Prisma schema ve client
-│   └── schema.prisma
-├── utils/             → Yardımcı fonksiyonlar
-│   └── formatter.ts
-└── index.ts           → Uygulama girişi (Express + WebSocket)
+main-server/
+├── server.ts                 → HTTP + WebSocket başlangıcı
+├── app.ts                    → Express app, route mount noktaları
+├── prisma/
+│   └── schema.prisma         → DB şeması (PostgreSQL)
+└── src/
+    ├── controllers/
+    │   ├── orderController.ts        → Sipariş ve durum webhook’ları
+    │   └── DeliveryHeroController.ts → DeliveryHero status & prepared akışları
+    ├── routes/
+    │   ├── orderRoutes.ts            → `/orders/*`
+    │   └── deliveryHeroRoutes.ts     → `/delivery-hero/*`
+    ├── services/
+    │   ├── OrderService.ts
+    │   └── DeliveryHeroService.ts
+    ├── utils/
+    │   ├── orderValidator.ts         → Doğrulama
+    │   └── orderTransformer.ts       → Dönüştürme & kaydetme
+    ├── ws/
+    │   └── websocket.ts              → ws tabanlı yayın (NEW_ORDER vb.)
+    └── types/
+        └── order.types.ts            → Dış sistem sipariş tipleri
 ```
 
----
+## 🔄 Akış (Özet)
 
-## 🚪 API Endpoint Listesi
+1) POST `/orders/order/:remoteId`
+- `OrderController.receiveOrder` → `OrderValidator` ile doğrula → `OrderTransformer.transformAndSave` ile veriyi DB formatına dönüştür ve kaydet (transaction).
+- Kaydedilen siparişi ilişkileriyle beraber tekrar alır ve `broadcastNewOrder` ile WebSocket’ten yayınlar.
 
-### ✨ Webhook
+2) POST `/orders/remoteId/:remoteId/remoteOrder/:remoteOrderId/posOrderStatus`
+- `OrderController.receiveStatusUpdate` → `OrderService.updatePosOrderStatus` siparişi `token|code|shortCode` üzerinden arar.
+- POS durumunu `Order.extraParameters.posStatus` alanında saklar, zaman damgasını günceller.
 
-| Method | URL                           | Açıklama                    |
-| ------ | ----------------------------- | --------------------------- |
-| POST   | `/webhook/yemeksepeti-order`  | Yeni sipariş webhook'u      |
-| POST   | `/webhook/yemeksepeti-status` | Sipariş durumu güncellemesi |
+3) PUT `/delivery-hero/order/status/:orderToken`
+- `DeliveryHeroController.updateOrderStatus` siparişi `token` ile bulur.
+- Gönderilen `status` değerine göre ilgili callback URL’ini seçer ve (varsa) HTTP isteği atar:
+  - `order_accepted` → `orderAcceptedUrl`
+  - `order_rejected` → `orderRejectedUrl`
+  - `order_picked_up` → `orderPickedUpUrl`
+  - Diğer durumlarda callback gönderilmez (örn. `order_preparing`, `order_ready`, `order_delivered`, `order_prepared`).
+- Lokal DB’de `Order.status` güncellenir ve WebSocket ile durum yayını yapılır. `order_accepted` ve `order_rejected` için ek yayınlar gönderilir.
 
-### 🍔 Order API
+4) POST `/delivery-hero/orders/:orderToken/preparation-completed`
+- `DeliveryHeroController.markOrderPrepared` yalnızca teslimat (`delivery`) siparişlerinde ve `orderPreparedUrl` varsa çalışır.
+- Dış servise POST atar, ardından lokal DB’de `status = 'order_prepared'` olarak günceller.
 
-| Method | URL               | Açıklama                 |
-| ------ | ----------------- | ------------------------ |
-| GET    | `/api/orders`     | Tüm siparişleri listeler |
-| GET    | `/api/orders/:id` | Belirli siparişi getirir |
-| PUT    | `/api/orders/:id` | Siparişi günceller       |
-| DELETE | `/api/orders/:id` | Siparişi siler           |
+## 🚪 Gerçek Endpoint’ler
 
-### ⚖️ Status API
+Base path’ler `app.ts` üzerinde tanımlıdır:
+- `app.use('/orders', orderRoutes)`
+- `app.use('/delivery-hero', deliveryHeroRoutes)`
 
-| Method | URL                          | Açıklama                            |
-| ------ | ---------------------------- | ----------------------------------- |
-| PUT    | `/api/orders/:id/status`     | Sipariş durumu güncelle             |
-| GET    | `/api/orders/status/:status` | Belirli statüdeki siparişleri getir |
+| **Method** | **URL** | **Açıklama** |
+| --- | --- | --- |
+| POST | `/orders/order/:remoteId` | Yeni sipariş webhook’u (validate → transform → save → WS yayın) |
+| POST | `/orders/remoteId/:remoteId/remoteOrder/:remoteOrderId/posOrderStatus` | POS durum güncelleme (extraParameters.posStatus) |
+| PUT | `/delivery-hero/order/status/:orderToken` | Sipariş durumu güncelle + uygun callback URL’ine isteği ilet |
+| POST | `/delivery-hero/orders/:orderToken/preparation-completed` | “Hazırlandı” bildirimi (yalnızca delivery + callback varsa) |
 
-### 📊 Stats API
+Önemli notlar:
+- Mevcut kodda “sipariş listeleme/güncelleme/silme” gibi genel REST endpoint’leri yoktur. README’den çıkarılmıştır.
+- Eski `webhook/*` path’leri ve “istatistik” (stats) uçları projede bulunmadığı için kaldırılmıştır.
 
-| Method | URL          | Açıklama                    |
-| ------ | ------------ | --------------------------- |
-| GET    | `/api/stats` | Sipariş sayıları, gelir vs. |
+## 🔌 WebSocket (ws)
 
----
+- Sunucu: `ws` kütüphanesi ile HTTP sunucusuna bağlanır (`initWebSocket`).
+- Bağlantı: `ws://localhost:3000`
+- Sunucu → İstemci mesaj tipleri (`src/ws/websocket.ts`):
+  - `NEW_ORDER`
+  - `ORDER_STATUS_UPDATE`
+  - `ORDER_ACCEPTED`
+  - `ORDER_REJECTED`
 
-## 🔌 WebSocket Eventleri
+Örnek mesaj (NEW_ORDER):
 
-### Server → Client
-
-* `order:new` → Yeni sipariş geldi
-* `order:statusUpdated` → Sipariş durumu güncellendi
-* `stats:update` → İstatistik verileri güncellendi
-
-### Client → Server
-
-* `order:updateStatus` → Kullanıcı sipariş durumu güncelledi
-
----
-
-## 🌐 Genel Akış Şemasi
-
-```
-[Yemeksepeti] --(POST Webhook)-->
-   /webhook/yemeksepeti-order
-         ↓
-   OrderService.validateAndSave()
-         ↓
-   Prisma (MySQL)
-         ↓
-   WebSocket.emit("order:new")
-         → Angular dashboard
+```json
+{
+  "type": "NEW_ORDER",
+  "payload": { "id": "...", "token": "...", "code": "...", "customer": { ... }, "products": [ ... ] }
+}
 ```
 
----
+## 🧩 Doğrulama ve Dönüşüm Katmanı
 
-## ⚡ Kurulum ve Çalıştırma
+- `OrderValidator` (temel alan kontrolleri, tip ve format doğrulamaları)
+- `OrderTransformer` (dış sistem modelini Prisma şemasına dönüştürür ve ilişkileriyle birlikte transaction içinde kaydeder)
+- Callback URL alanları `Order` tablosunda saklanır: `orderAcceptedUrl`, `orderRejectedUrl`, `orderProductModificationUrl`, `orderPickedUpUrl`, `orderPreparedUrl`, `orderPreparationTimeAdjustmentUrl`
 
+## 🗄️ Veritabanı
+
+- Sağlayıcı: PostgreSQL (`schema.prisma → datasource db.provider = postgresql`)
+- Önemli tablolar: `orders`, `customers`, `payments`, `prices`, `deliveries`, `pickups`, `products`, `toppings`, `discounts`, `delivery_fees`
+
+## ⚙️ Backend Kurulum & Çalıştırma (main-server)
+
+Gereksinimler: Node.js 18+, PostgreSQL
+
+1) Bağımlılıklar
 ```bash
-git clone https://github.com/your-username/orderflow-backend.git
-cd orderflow-backend
+cd main-server
 npm install
+```
+
+2) .env
+```env
+PORT=3000
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DB_NAME?schema=public"
+```
+
+3) Prisma
+```bash
 npx prisma generate
 npx prisma migrate dev --name init
-npm run dev
 ```
 
-Webhook test etmek için:
+4) Geliştirme Sunucusu
+```bash
+npm run dev
+# http://localhost:3000
+```
+
+## 🖥️ Frontend Kurulum & Çalıştırma (orderflow-frontend)
+
+Gereksinimler: Node.js 18+
 
 ```bash
-npx ngrok http 3000
-# Yemeksepeti'ne webhook URL olarak: https://xxxxx.ngrok.io/webhook/yemeksepeti-order
+cd orderflow-frontend
+npm install
+npm start
+# http://localhost:4200
 ```
 
----
+Bağlantılar:
+- Backend HTTP: `http://localhost:3000`
+- WebSocket: `ws://localhost:3000`
 
-## 🚀 Katkıda Bulun
+## 🧪 Örnek İstekler
 
-Pull request, issue ve geliştirme önerileri için katkılarınızı bekliyoruz!
+1) Yeni sipariş (Webhook simülasyonu)
+```bash
+curl -X POST http://localhost:3000/orders/order/RESTAURANT_123 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "...",
+    "code": "...",
+    "createdAt": "2025-07-25T10:00:00Z",
+    "expiryDate": "2025-07-25T10:30:00Z",
+    "expeditionType": "delivery",
+    "customer": {"email": "hash@example.com"},
+    "localInfo": {"countryCode": "TR", "currencySymbol": "₺", "platform": "YS", "platformKey": "ys"},
+    "platformRestaurant": {"id": "YS-REST-1"},
+    "payment": {"status": "paid", "type": "card"},
+    "price": {"grandTotal": "250.00", "totalNet": "210.00", "vatTotal": "40.00", "deliveryFees": []},
+    "products": [],
+    "PreparationTimeAdjustments": {"maxPickUpTimestamp": "2025-07-25T10:40:00Z", "preparationTimeChangeIntervalsInMinutes": []}
+  }'
+```
 
----
+2) POS durum güncelleme
+```bash
+curl -X POST http://localhost:3000/orders/remoteId/RESTAURANT_123/remoteOrder/ORDER_TOKEN/posOrderStatus \
+  -H "Content-Type: application/json" \
+  -d '{"status": "accepted", "timestamp": "2025-07-25T10:05:00Z"}'
+```
+
+3) DeliveryHero sipariş durumu (callback tetiklemeli)
+```bash
+curl -X PUT http://localhost:3000/delivery-hero/order/status/ORDER_TOKEN \
+  -H "Content-Type: application/json" \
+  -d '{"status": "order_accepted"}'
+```
+
+4) DeliveryHero hazırlık tamamlandı
+```bash
+curl -X POST http://localhost:3000/delivery-hero/orders/ORDER_TOKEN/preparation-completed
+```
 
 ## 📄 Lisans
 
